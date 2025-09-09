@@ -103,7 +103,7 @@ Calibration curves for all three models are close to the diagonal, indicating we
 
 Below we show the performance curves (ROC, PR, Calibration) for all three models.
 
-![ROC/PR/Calibration for RF, XGBoost and LSTM](images/models_comparison.jpg)
+![ROC/PR/Calibration for RF, XGBoost and LSTM](images/models_comparison.png.jpg)
 
 ---
 
