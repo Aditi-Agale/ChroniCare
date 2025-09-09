@@ -1,70 +1,124 @@
-# Getting Started with Create React App
+# 🩺 AI-Driven Risk Prediction Engine for Chronic Care Patients  
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+> Submission for **Hackwell**  
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## 🚩 Problem Statement  
 
-### `npm start`
+Chronic care management often involves tracking dozens of vitals, labs, lifestyle indicators and adherence events over months.  
+Clinicians and care teams want to know **“which patient is likely to deteriorate in the next 90 days?”** so they can proactively intervene.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+Key challenges:
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- Fragmented multi-modal data: static demographics + longitudinal vitals + behavioral signals.
+- Severe class imbalance: very few deterioration events vs many stable periods.
+- Need for **calibrated probabilities** and **transparent explanations** to support clinical decision making.
 
-### `npm test`
+Our goal:  
+> **Predict the probability of patient deterioration within 90 days using 30–180 days of historical data, and surface the drivers of risk.**
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+---
 
-### `npm run build`
+## 📊 Synthetic Dataset Creation  
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Because real patient data is protected, we built a **rich synthetic dataset generator** that simulates:
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- **Static profile**: age, sex, height/weight/BMI, comorbidities (diabetes, hypertension, CHF, CKD, COPD), smoking, medications, labs.
+- **Daily time-series**: vitals (BP, HR, SpO₂), labs, adherence (missed doses, refill gaps), activity (steps, sleep), stress, symptom flags, utilization events.
+- **Risk score**: heuristic combining comorbidities + vitals/labs trends.
+- **Ground truth**: probability of deterioration = sigmoid(α + β·risk_score_raw), sampled into a binary `event_within_90d` label.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Output:  
+A single Excel workbook `synthetic_chronic_dataset.xlsx` with one sheet per patient containing day-level rows.
 
-### `npm run eject`
+---
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## 🛠️ Model Approach  
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+We treat the problem at **two levels**:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+1. **Aggregated features per patient** (last values, mean, std, min/max, slopes over last 30 days).  
+   - Trained **Random Forest** and **XGBoost** on these tabular features.
+2. **Sequential modeling** of the raw time series.  
+   - Built a **90-step LSTM** (with masking + dropout) to learn temporal patterns directly.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### Pipeline Steps  
 
-## Learn More
+- **Column cleaning & flexible detection** of `patient_id` and `event_within_90d`.
+- **Forward-fill imputation** per patient, then median for numeric; “unknown” for categorical.
+- **Label encoding** for categorical features (encoders saved for reuse).
+- **Feature aggregation** with recent-window slopes (30 days by default).
+- **GroupShuffleSplit** train/test by patient to prevent leakage.
+- **StandardScaler** for numeric features (joblib saved).
+- **Model training**:
+  - RandomForestClassifier (200 trees, max_depth=8).
+  - XGBoost (binary:logistic, eta=0.05, max_depth=6, early stopping).
+  - LSTM (64 units, dropout=0.3, EarlyStopping patience=10).
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### Explainability  
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+- **SHAP** for XGBoost (TreeExplainer + summary plot).
+- **Feature importances** for Random Forest.
+- **Occlusion analysis** for LSTM sequences.
 
-### Code Splitting
+### Saved Artifacts  
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+- `random_forest.joblib`  
+- `xgboost.model`  
+- `lstm_model.h5`  
+- `scaler.joblib` (tabular)  
+- `ts_scaler.joblib` (sequence mean/std + feature list)
 
-### Analyzing the Bundle Size
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## 📈 Results  
 
-### Making a Progressive Web App
+All models achieved strong performance; final ensemble accuracy ~**97%**.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+| Model        | AUROC  | AUPRC  | Accuracy | Notes                      |
+|--------------|--------|--------|----------|---------------------------|
+| RandomForest | 0.969  | 0.994  | 0.98     | Excellent calibration      |
+| XGBoost      | 0.968  | 0.996  | 0.98     | Slightly better AUPRC      |
+| LSTM         | 0.955  | 0.998  | 0.97     | Captures temporal patterns |
 
-### Advanced Configuration
+Confusion matrices show almost all positives correctly identified; very few negatives misclassified (class imbalance still present).
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+**Top drivers of risk (SHAP):**
 
-### Deployment
+- `deterioration_probability_numeric_min`  
+- `creatinine_mg_dl_recent_slope`  
+- `abnormal_flags_today_count_last`  
+- `stress_level_recent_slope`  
+- `bmi_kg_m2_std`  
+- `missed_doses_last_7d_count_recent_mean`  
+- `eGFR_recent_slope`  
+- … (full list in SHAP summary plot).
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+Calibration curves for all three models are close to the diagonal, indicating well-calibrated probabilities.
 
-### `npm run build` fails to minify
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## 📉 Model Performance Visuals  
+
+Below we show the performance curves (ROC, PR, Calibration) for all three models.
+
+![ROC/PR/Calibration for RF, XGBoost and LSTM](images/models_comparison.jpg)
+
+---
+
+## 🔎 Explainability & Class Distribution  
+
+SHAP summary plot and class distribution of the synthetic dataset.
+
+![SHAP values & Class Distribution](images/shap_classdist.jpg)
+
+
+## 🖥️ Installation & Setup  
+
+Clone this repository and install requirements:
+
+```bash
+git clone https://github.com/yourusername/hackwell-risk-predictor.git
+cd hackwell-risk-predictor
+pip install -r requirements.txt
