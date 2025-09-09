@@ -4,7 +4,7 @@
 
 ---
 
-## 🚩 Problem Statement  
+## 🧩 Problem Statement  
 
 Chronic care management often involves tracking dozens of vitals, labs, lifestyle indicators and adherence events over months.  
 Clinicians and care teams want to know **“which patient is likely to deteriorate in the next 90 days?”** so they can proactively intervene.
@@ -114,11 +114,19 @@ SHAP summary plot and class distribution of the synthetic dataset.
 ![SHAP values & Class Distribution](images/shap_classdist.jpg)
 
 
-## 🖥️ Installation & Setup  
+# Hi, We are the makers of ChroniCare! 👋
 
-Clone this repository and install requirements:
+## About us
 
-```bash
-git clone https://github.com/yourusername/hackwell-risk-predictor.git
-cd hackwell-risk-predictor
-pip install -r requirements.txt
+Meet the creators behind ChroniCare – Aditi A, Aditi B, Arnav and Nikhil. 
+We are a driven team dedicated to transforming chronic care through intelligent, proactive support. Our Hackwell project isn’t just another prediction model; it’s a holistic companion for clinicians and care teams, designed to identify patients at risk before crises occur. Our mission is clear: to deliver accessible, AI-driven insights that empower healthcare providers to act early, personalize interventions, and improve outcomes. With a focus on transparency, explainability, and user-centric design, our solution combines advanced analytics with an intuitive interface, turning complex health data into actionable guidance. Join us in creating a future where innovation and compassion converge to make chronic care smarter and more effective.
+
+- Aditi - [Aditi Agale](https://www.linkedin.com/in/aditi-agale-981372289/)
+- Aditi - [Aditi Bambal](https://www.linkedin.com/in/aditi-bambal-06640328b/)
+- Arnav - [Arnav Parekar](https://linkedin.com/in/arnav-parekar-b55786287/)
+- Nikhil - [Nikhil Parkar](https://www.linkedin.com/in/nikhil-parkar-49b600274/)
+
+## Happy coding 💯
+
+Made with love ❤️
+
